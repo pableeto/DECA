@@ -63,7 +63,7 @@ def process_proc(video_list, device,
     testdata = datasets.VideoTestData(video_list, input_root, landmark_root, iscrop=iscrop)
 
     print(f'{len(video_list)} items.')
-    batchsize = 32
+    batchsize = 96
     for i in range(len(testdata)):
         name = testdata[i]['videoname']
         print(name)
@@ -77,6 +77,7 @@ def process_proc(video_list, device,
         out_coeff_name = out_name + '.npy'
 
         if(os.path.exists(out_coeff_name)):
+            print('Skipped.')
             continue
 
         videos = testdata[i]['video'].to(device)
