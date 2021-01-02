@@ -26,6 +26,7 @@ from glob import glob
 import scipy.io
 
 from . import detectors
+# detectors.FAN()
 
 def video2sequence(video_path):
     videofolder = video_path.split('.')[0]
@@ -44,8 +45,9 @@ def video2sequence(video_path):
     print('video frames are stored in {}'.format(videofolder))
     return imagepath_list
 
+
 class TestData(Dataset):
-    def __init__(self, testpath, iscrop=True, crop_size=224, scale=1.25, face_detector='mtcnn'):
+    def __init__(self, testpath, iscrop=True, crop_size=224, scale=1.25, face_detector='mtcnn', detector_device='cuda'):
         '''
             testpath: folder, imagepath_list, image path, video path
         '''
@@ -92,7 +94,6 @@ class TestData(Dataset):
 
     def __getitem__(self, index):
         imagepath = self.imagepath_list[index]
-        imagename = imagepath.split('/')[-1].split('.')[0]
 
         image = np.array(imread(imagepath))
         if len(image.shape) == 2:
@@ -137,7 +138,98 @@ class TestData(Dataset):
         dst_image = warp(image, tform.inverse, output_shape=(self.resolution_inp, self.resolution_inp))
         dst_image = dst_image.transpose(2,0,1)
         return {'image': torch.tensor(dst_image).float(),
-                'imagename': imagename,
+                'imagename': imagepath,
                 # 'tform': tform,
                 # 'original_image': torch.tensor(image.transpose(2,0,1)).float(),
                 }
+
+
+def load_video(filename):
+    cap = cv2.VideoCapture(filename)
+    frame_list = []
+    while(cap.isOpened()):
+        ret, frame = cap.read()
+        if(ret is False):
+            break
+        frame_list.append(frame)
+    video_frames = np.stack(frame_list, axis=0)
+    return video_frames
+
+
+class VideoTestData(Dataset):
+    def __init__(self, testpath,
+                 video_folder, landmark_folder,
+                 iscrop=True, crop_size=224, scale=1.25):
+        if isinstance(testpath, list):
+            self.videopath_list = testpath
+        print('total {} videos'.format(len(self.videopath_list)))
+        self.videopath_list = sorted(self.videopath_list)
+        self.crop_size = crop_size
+        self.scale = scale
+        self.iscrop = iscrop
+        self.resolution_inp = crop_size
+        self.video_folder = video_folder
+        self.landmark_folder = landmark_folder
+
+    def __len__(self):
+        return len(self.videopath_list)
+
+    def bbox2point(self, left, right, top, bottom):
+        ''' bbox from detector and landmarks are different
+        '''
+        old_size = (right - left + bottom - top) / 2 * 1.1
+        center = np.stack([right - (right - left) / 2.0, bottom - (bottom - top) / 2.0], axis=-1)
+        return old_size, center
+
+    def __getitem__(self, index):
+        videopath = self.videopath_list[index]
+        if self.iscrop:
+            kpt_path = videopath.replace(self.video_folder, self.landmark_folder).replace('.mp4', '.npy')
+            if(os.path.exists(kpt_path)):
+                video = load_video(videopath)[..., ::-1]
+                n, h, w, _ = video.shape
+
+                kpt = np.load(kpt_path).squeeze(1)
+                left = np.min(kpt[..., 0], axis=1)
+                right = np.max(kpt[..., 0], axis=1)
+                top = np.min(kpt[..., 1], axis=1)
+                bottom = np.max(kpt[..., 1], axis=1)
+
+                old_size, center = self.bbox2point(left, right, top, bottom)                
+                size = (old_size * self.scale).astype(np.int32)
+                src_pts = np.stack([
+                    np.stack([center[:, 0] - size / 2, center[:, 1] - size / 2], axis=-1),
+                    np.stack([center[:, 0] - size / 2, center[:, 1] + size / 2], axis=-1),
+                    np.stack([center[:, 0] + size / 2, center[:, 1] - size / 2], axis=-1),
+                ], axis=1)
+            else:
+                return {
+                    'video': None,
+                    'videoname': None,
+                    'tform': None
+                }
+        else:
+            video = load_video(videopath)[..., ::-1]
+            n, h, w, _ = video.shape
+            src_pts = np.array([[0, 0], [0, h - 1], [w - 1, 0]])
+            src_pts = np.tile(src_pts, [n, 1, 1])
+
+        video = video / 255.
+        DST_PTS = np.array([[0, 0], [0, self.resolution_inp - 1], [self.resolution_inp - 1, 0]])
+
+        tform_list = []
+        out_video_list = []
+        for i in range(n):
+            tform = estimate_transform('similarity', src_pts[i], DST_PTS)
+            dst_frame = warp(video[i], tform.inverse, output_shape=(self.resolution_inp, self.resolution_inp))
+            out_video_list.append(dst_frame)
+            tform_list.append(tform.params)
+
+        tform_video = np.stack(tform_list, axis=0)
+        dst_video = np.stack(out_video_list, axis=0)
+        dst_video = dst_video.transpose(0, 3, 1, 2)
+        return {
+            'video': torch.tensor(dst_video).float(),
+            'videoname': videopath,
+            'tform_video': torch.tensor(tform_video)
+        }

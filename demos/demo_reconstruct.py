@@ -39,8 +39,8 @@ def main(args):
     deca_cfg.model.use_tex = args.useTex
     deca = DECA(config = deca_cfg, device=device)
     # for i in range(len(testdata)):
-    for i in tqdm(range(len(testdata))):
-        name = testdata[i]['imagename']
+    for i in tqdm(range(len(testdata))): 
+        name = testdata[i]['imagename'].split('/')[-1].split('.')[0]
         images = testdata[i]['image'].to(device)[None,...]
         codedict = deca.encode(images)
         opdict, visdict = deca.decode(codedict) #tensor
@@ -73,7 +73,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='DECA: Detailed Expression Capture and Animation')
 
     parser.add_argument('-i', '--inputpath', default='TestSamples/examples', type=str,
-                        help='path to the test data, can be image folder, image path, image list, video')
+                        help='path to the test data, can be image folder, image path, image list, video')                    
     parser.add_argument('-s', '--savefolder', default='TestSamples/examples/results', type=str,
                         help='path to the output directory, where results(obj, txt files) will be stored.')
     parser.add_argument('--device', default='cuda', type=str,

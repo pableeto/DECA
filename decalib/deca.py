@@ -217,10 +217,15 @@ class DECA(object):
             'landmarks2d': util.tensor_vis_landmarks(images, landmarks2d, isScale=False),
             'landmarks3d': util.tensor_vis_landmarks(images, landmarks3d, isScale=False),
             'shape_images': shape_images,
-            'shape_detail_images': shape_detail_images
+            'shape_detail_images': shape_detail_images,
+            'normal_images': ops['normal_images']
         }
         if self.cfg.model.use_tex:
             visdict['rendered_images'] = ops['images']
+            visdict['albedo_images'] = ops['albedo_images']
+            visdict['uv_images'] = opdict['uv_texture_gt']
+            visdict['uv_textures'] = opdict['uv_texture']
+
         return opdict, visdict
 
     def visualize(self, visdict, size=None):
