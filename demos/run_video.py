@@ -61,11 +61,12 @@ def process_proc(video_list, device,
     deca_cfg.model.use_tex = True
     deca = DECA(config=deca_cfg, device=device)
     testdata = datasets.VideoTestData(video_list, input_root, landmark_root, iscrop=iscrop)
+    dataloader = torch.utils.data.DataLoader(testdata, num_workers=8)
 
     print(f'{len(video_list)} items.')
     batchsize = 96
-    for i in range(len(testdata)):
-        name = testdata[i]['videoname']
+    for batch in dataloader:
+        name = batch['videoname'][0]
         print(name)
         if(name is None):
             print('Skipped.')
@@ -80,7 +81,7 @@ def process_proc(video_list, device,
             print('Skipped.')
             continue
 
-        videos = testdata[i]['video'].to(device)
+        videos = batch['video'][0].to(device)
         n_frame = videos.shape[0]
         visdict_list = []
         codedict_list = []
@@ -102,7 +103,7 @@ def process_proc(video_list, device,
         if saveMat:
             npy_dict = util.dict_tensor2npy(codedict_final, ignore_key_list=['images'])
             if(iscrop):
-                npy_dict['tforms'] = testdata[i]['tform_video'].cpu().numpy()
+                npy_dict['tforms'] = batch['tform_video'][0].cpu().numpy()
             np.save(out_coeff_name, npy_dict)
         if saveVis:
             for k in range(n_frame):
