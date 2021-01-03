@@ -204,9 +204,9 @@ class VideoTestData(Dataset):
                 ], axis=1)
             else:
                 return {
-                    'video': None,
-                    'videoname': None,
-                    'tform': None
+                    'video': 'None',
+                    'videoname': 'None',
+                    'tform': 'None'
                 }
         else:
             video = load_video(videopath)[..., ::-1]

@@ -68,7 +68,7 @@ def process_proc(video_list, device,
     for batch in dataloader:
         name = batch['videoname'][0]
         print(name)
-        if(name is None):
+        if(name == 'None'):
             print('Skipped.')
             continue
 
