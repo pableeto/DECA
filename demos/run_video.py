@@ -65,7 +65,7 @@ def process_proc(video_list, device,
     dataloader = torch.utils.data.DataLoader(testdata, num_workers=8)
 
     print(f'{len(video_list)} items.')
-    batchsize = 96
+    batchsize = 64
     for batch in dataloader:
         name = batch['videoname'][0]
         print(name)
@@ -76,7 +76,7 @@ def process_proc(video_list, device,
         name, _ = os.path.splitext(name)
         out_name = name.replace(input_root, savefolder)
         os.makedirs(os.path.dirname(out_name), exist_ok=True)
-        out_coeff_name = out_name + '.npy'
+        out_coeff_name = out_name + '.npz'
 
         if(os.path.exists(out_coeff_name)):
             print('Skipped.')
@@ -84,18 +84,21 @@ def process_proc(video_list, device,
 
         videos = batch['video'][0].to(device)
         n_frame = videos.shape[0]
+        fid = 0
         visdict_list = []
         codedict_list = []
         for k in range(0, n_frame, batchsize):
             video_in = videos[k: k + batchsize]
             codedict = deca.encode(video_in)
             codedict_list.append(codedict)
-            if(saveVis is True or saveImages is True):
-                _, visdict = deca.decode(codedict)  # tensor
+            if(saveVis is True or saveImages is True and k == 0):
+                vis_code_dict = dict()
+                for key in codedict:
+                    vis_code_dict[key] = codedict[key][0:1]
+                _, visdict = deca.decode(vis_code_dict)  # tensor
                 visdict_list.append(visdict)
 
         codedict_final = merge_dict(codedict_list)
-        fid = random.choice(range(n_frame))
 
         if saveImages or saveVis:
             visdict_final = merge_dict(visdict_list)
@@ -108,14 +111,14 @@ def process_proc(video_list, device,
                 npy_dict['tforms'] = batch['tform_video'][0].cpu().numpy()
             np.savez(out_coeff_name, npy_dict)
         if saveVis:
-            cv2.imwrite(os.path.join(out_name, 'vis{:05d}.jpg'.format(fid)), deca.visualize(visdict_expand[fid]))
+            cv2.imwrite(os.path.join(out_name, 'vis{:05d}.jpg'.format(fid)), deca.visualize(visdict_expand[0]))
         if saveImages:
 #             ['inputs', 'rendered_images', 'albedo_images', 'shape_images', 'shape_detail_images', 'normal_images']:
             for vis_name in ['inputs', 'rendered_images', 'albedo_images', 'normal_images', 'uv_images', 'uv_textures']:
-                if vis_name not in visdict_expand[fid].keys():
+                if vis_name not in visdict_expand[0].keys():
                     continue
-                image = util.tensor2image(visdict_expand[fid][vis_name][0])
-                cv2.imwrite(os.path.join(out_name, vis_name + '{:05d}.jpg'.format(k)), image)
+                image = util.tensor2image(visdict_expand[0][vis_name][0])
+                cv2.imwrite(os.path.join(out_name, vis_name + '{:05d}.jpg'.format(fid)), image)
     print(f'-- please check the results in {savefolder}')
 
 
