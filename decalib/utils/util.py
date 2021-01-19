@@ -512,11 +512,14 @@ def remove_module(state_dict):
         new_state_dict[name] = v
     return new_state_dict
 
-def dict_tensor2npy(tensor_dict, ignore_key_list = []):
+def dict_tensor2npy(tensor_dict, ignore_key_list = [], batch_mode=False):
     npy_dict = {}
     for key in tensor_dict:
         if(key not in ignore_key_list):
-            npy_dict[key] = tensor_dict[key][0].cpu().numpy()
+            if(batch_mode):
+                npy_dict[key] = tensor_dict[key].cpu().numpy()
+            else:
+                npy_dict[key] = tensor_dict[key][0].cpu().numpy()
     return npy_dict
         
 # ---------------------------------- visualization

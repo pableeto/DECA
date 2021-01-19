@@ -19,6 +19,7 @@ import cv2
 import torch
 import numpy as np
 from time import time
+import random
 # from scipy.io import savemat
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -92,8 +93,9 @@ def process_proc(video_list, device,
             if(saveVis is True or saveImages is True):
                 _, visdict = deca.decode(codedict)  # tensor
                 visdict_list.append(visdict)
-            
+
         codedict_final = merge_dict(codedict_list)
+        fid = random.choice(range(n_frame))
 
         if saveImages or saveVis:
             visdict_final = merge_dict(visdict_list)
@@ -101,21 +103,19 @@ def process_proc(video_list, device,
             os.makedirs(out_name, exist_ok=True)
         # -- save results
         if saveMat:
-            npy_dict = util.dict_tensor2npy(codedict_final, ignore_key_list=['images'])
+            npy_dict = util.dict_tensor2npy(codedict_final, ignore_key_list=['images'], batch_mode=True)
             if(iscrop):
                 npy_dict['tforms'] = batch['tform_video'][0].cpu().numpy()
-            np.save(out_coeff_name, npy_dict)
+            np.savez(out_coeff_name, npy_dict)
         if saveVis:
-            for k in range(n_frame):
-                cv2.imwrite(os.path.join(out_name, 'vis{:05d}.jpg'.format(k)), deca.visualize(visdict_expand[k]))
+            cv2.imwrite(os.path.join(out_name, 'vis{:05d}.jpg'.format(fid)), deca.visualize(visdict_expand[fid]))
         if saveImages:
 #             ['inputs', 'rendered_images', 'albedo_images', 'shape_images', 'shape_detail_images', 'normal_images']:
-            for k in range(n_frame):
-                for vis_name in ['inputs', 'rendered_images', 'albedo_images', 'normal_images', 'uv_images', 'uv_textures']:
-                    if vis_name not in visdict_expand[k].keys():
-                        continue
-                    image = util.tensor2image(visdict_expand[k][vis_name][0])
-                    cv2.imwrite(os.path.join(out_name, vis_name + '{:05d}.jpg'.format(k)), image)
+            for vis_name in ['inputs', 'rendered_images', 'albedo_images', 'normal_images', 'uv_images', 'uv_textures']:
+                if vis_name not in visdict_expand[fid].keys():
+                    continue
+                image = util.tensor2image(visdict_expand[fid][vis_name][0])
+                cv2.imwrite(os.path.join(out_name, vis_name + '{:05d}.jpg'.format(k)), image)
     print(f'-- please check the results in {savefolder}')
 
 
@@ -129,7 +129,7 @@ if __name__ == "__main__":
 
     video_pkl = sys.argv[1]
     with open(video_pkl, 'rb') as f:
-        video_list = pickle.load(f)    
+        video_list = pickle.load(f)
     # video_list = glob.glob(input_root + '/**/*.mp4', recursive=True)
 
     os.makedirs(savefolder, exist_ok=True)
@@ -137,4 +137,4 @@ if __name__ == "__main__":
     process_proc(video_list,
                  gpu_device, input_root, landmark_root, savefolder,
                  iscrop,
-                 True, False, False)
+                 True, True, False)
