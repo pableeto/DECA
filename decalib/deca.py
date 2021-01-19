@@ -72,7 +72,7 @@ class DECA(object):
         self.param_dict = {i:model_cfg.get('n_' + i) for i in model_cfg.param_list}
 
         # encoders
-        self.E_flame = ResnetEncoder(outsize=self.n_param).to(self.device) 
+        self.E_flame = ResnetEncoder(outsize=self.n_param).to(self.device)
         self.E_detail = ResnetEncoder(outsize=self.n_detail).to(self.device)
         # decoders
         self.flame = FLAME(model_cfg).to(self.device)
@@ -148,7 +148,6 @@ class DECA(object):
 
     @torch.no_grad()
     def encode(self, images):
-        batch_size = images.shape[0]
         parameters = self.E_flame(images)
         detailcode = self.E_detail(images)
         codedict = self.decompose_code(parameters, self.param_dict)
