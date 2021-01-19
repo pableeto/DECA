@@ -109,7 +109,7 @@ def process_proc(video_list, device,
             npy_dict = util.dict_tensor2npy(codedict_final, ignore_key_list=['images'], batch_mode=True)
             if(iscrop):
                 npy_dict['tforms'] = batch['tform_video'][0].cpu().numpy()
-            np.savez(out_coeff_name, npy_dict)
+            np.savez(out_coeff_name, **npy_dict)
         if saveVis:
             cv2.imwrite(os.path.join(out_name, 'vis{:05d}.jpg'.format(fid)), deca.visualize(visdict_expand[0]))
         if saveImages:
