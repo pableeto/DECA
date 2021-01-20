@@ -61,7 +61,18 @@ def process_proc(video_list, device,
 
     deca_cfg.model.use_tex = True
     deca = DECA(config=deca_cfg, device=device)
-    testdata = datasets.VideoTestData(video_list, input_root, landmark_root, iscrop=iscrop)
+
+    # Remove processed video_list
+    cleaned_video_list = []
+    for filename in video_list:
+        name, _ = os.path.splitext(filename)
+        out_name = name.replace(input_root, savefolder)
+        out_coeff_name = out_name + '.npz'
+        if(not os.path.exists(out_coeff_name)):
+            cleaned_video_list.append(filename)
+    print(f"Removed {len(video_list) - len(cleaned_video_list)} processed videos")
+
+    testdata = datasets.VideoTestData(cleaned_video_list, input_root, landmark_root, iscrop=iscrop)
     dataloader = torch.utils.data.DataLoader(testdata, num_workers=8)
 
     print(f'{len(video_list)} items.')
